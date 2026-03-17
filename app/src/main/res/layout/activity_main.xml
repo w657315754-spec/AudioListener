@@ -13,12 +13,69 @@
         android:textSize="14sp"
         android:checked="false" />
 
+    <!-- 识别语言 -->
     <LinearLayout
-        android:id="@+id/layoutThreshold"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginTop="8dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="识别语言"
+            android:textSize="12sp" />
+
+        <Spinner
+            android:id="@+id/spinnerLanguage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp" />
+
+    </LinearLayout>
+
+    <!-- 停顿间隔 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="停顿间隔"
+            android:textSize="12sp" />
+
+        <SeekBar
+            android:id="@+id/seekSilence"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:max="39"
+            android:progress="7" />
+
+        <TextView
+            android:id="@+id/tvSilence"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0.40s"
+            android:textSize="12sp"
+            android:minWidth="36dp" />
+
+    </LinearLayout>
+
+    <!-- 说话人区分灵敏度 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
         android:gravity="center_vertical">
 
         <TextView
@@ -34,14 +91,14 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
-            android:max="80"
+            android:max="100"
             android:progress="40" />
 
         <TextView
             android:id="@+id/tvThreshold"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0.60"
+            android:text="0.40"
             android:textSize="12sp"
             android:minWidth="36dp" />
 

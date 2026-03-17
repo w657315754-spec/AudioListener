@@ -2,11 +2,12 @@
 .gradle
 /local.properties
 /.idea
-.DS_Store
 /build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-app/build/
+/app/build
+*.apk
+
+# 大模型文件不入库
+app/libs/*.onnx
 app/libs/*.aar
+.DS_Store
+app/.DS_Store

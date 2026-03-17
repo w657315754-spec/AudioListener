@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
@@ -13,9 +14,11 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.IBinder
 import android.provider.Settings
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,11 +30,27 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var btnToggle: Button
     private lateinit var switchMic: Switch
+    private lateinit var spinnerLanguage: Spinner
+    private lateinit var seekSilence: SeekBar
+    private lateinit var tvSilence: TextView
     private lateinit var seekThreshold: SeekBar
     private lateinit var tvThreshold: TextView
     private lateinit var tvStatus: TextView
     private lateinit var tvTranscription: TextView
     private lateinit var scrollView: ScrollView
+
+    // language codes matching spinner order
+    private val languageCodes = arrayOf("auto", "zh", "en")
+
+    private lateinit var prefs: SharedPreferences
+
+    companion object {
+        private const val PREFS_NAME = "audio_listener_settings"
+        private const val KEY_USE_MIC = "use_mic"
+        private const val KEY_LANGUAGE = "language"
+        private const val KEY_SILENCE = "silence_progress"
+        private const val KEY_THRESHOLD = "threshold_progress"
+    }
 
     private var transcriptionService: TranscriptionService? = null
     private var isRunning = false
@@ -49,10 +68,14 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { setStatus(status) }
             }
             // 同步当前阈值到 service
-            val threshold = (seekThreshold.progress + 20) / 100f
+            val threshold = seekThreshold.progress / 100f
             transcriptionService?.speakerThreshold = threshold
+            val selectedLanguage = languageCodes[spinnerLanguage.selectedItemPosition]
+            val silenceDuration = (seekSilence.progress + 1) * 0.05f
             val intent = Intent(this@MainActivity, TranscriptionService::class.java).apply {
                 putExtra(TranscriptionService.EXTRA_USE_MIC, pendingUseMic)
+                putExtra(TranscriptionService.EXTRA_LANGUAGE, selectedLanguage)
+                putExtra(TranscriptionService.EXTRA_SILENCE_DURATION, silenceDuration)
                 if (!pendingUseMic) {
                     putExtra(TranscriptionService.EXTRA_RESULT_CODE, pendingResultCode)
                     putExtra(TranscriptionService.EXTRA_RESULT_DATA, pendingResultData)
@@ -103,17 +126,47 @@ class MainActivity : AppCompatActivity() {
 
         btnToggle = findViewById(R.id.btnToggle)
         switchMic = findViewById(R.id.switchMic)
+        spinnerLanguage = findViewById(R.id.spinnerLanguage)
+        seekSilence = findViewById(R.id.seekSilence)
+        tvSilence = findViewById(R.id.tvSilence)
         seekThreshold = findViewById(R.id.seekThreshold)
         tvThreshold = findViewById(R.id.tvThreshold)
         tvStatus = findViewById(R.id.tvStatus)
         tvTranscription = findViewById(R.id.tvTranscription)
         scrollView = findViewById(R.id.scrollView)
 
-        // SeekBar: 范围 0.20 ~ 1.00，步长 0.01，默认 0.60
-        // max=80 对应 progress 0~80 → threshold = (progress + 20) / 100
+        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        // 语言选择 Spinner
+        val languageLabels = arrayOf("自动检测", "中文", "English")
+        spinnerLanguage.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, languageLabels)
+
+        // 恢复保存的设置
+        switchMic.isChecked = prefs.getBoolean(KEY_USE_MIC, false)
+        spinnerLanguage.setSelection(prefs.getInt(KEY_LANGUAGE, 0))
+        seekSilence.progress = prefs.getInt(KEY_SILENCE, 7)   // 默认 (7+1)*0.05 = 0.40s
+        seekThreshold.progress = prefs.getInt(KEY_THRESHOLD, 40) // 默认 40/100 = 0.40
+
+        // 初始化显示文本
+        tvSilence.text = "${"%.2f".format((seekSilence.progress + 1) * 0.05f)}s"
+        tvThreshold.text = "%.2f".format(seekThreshold.progress / 100f)
+
+        // 停顿间隔 SeekBar: 范围 0.05s ~ 2.00s，步长 0.05s
+        // max=39, progress 0~39 → duration = (progress + 1) * 0.05
+        seekSilence.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                val duration = (progress + 1) * 0.05f
+                tvSilence.text = "${"%.2f".format(duration)}s"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        // 说话人灵敏度 SeekBar: 范围 0.00 ~ 1.00，默认 0.40
+        // max=100, progress 0~100 → threshold = progress / 100
         seekThreshold.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                val threshold = (progress + 20) / 100f
+                val threshold = progress / 100f
                 tvThreshold.text = "%.2f".format(threshold)
                 transcriptionService?.speakerThreshold = threshold
             }
@@ -131,6 +184,20 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         checkModelAndUpdateUI()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        saveSettings()
+    }
+
+    private fun saveSettings() {
+        prefs.edit()
+            .putBoolean(KEY_USE_MIC, switchMic.isChecked)
+            .putInt(KEY_LANGUAGE, spinnerLanguage.selectedItemPosition)
+            .putInt(KEY_SILENCE, seekSilence.progress)
+            .putInt(KEY_THRESHOLD, seekThreshold.progress)
+            .apply()
     }
 
     private fun requestStoragePermissionIfNeeded() {
@@ -225,6 +292,8 @@ class MainActivity : AppCompatActivity() {
         btnToggle.text = if (isRunning) getString(R.string.stop_transcription)
                          else getString(R.string.start_transcription)
         switchMic.isEnabled = !isRunning
+        spinnerLanguage.isEnabled = !isRunning
+        seekSilence.isEnabled = !isRunning
     }
 
     private fun setStatus(msg: String) {

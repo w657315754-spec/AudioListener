@@ -26,6 +26,8 @@ class TranscriptionService : Service() {
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
         const val EXTRA_USE_MIC = "use_mic"
+        const val EXTRA_LANGUAGE = "language"
+        const val EXTRA_SILENCE_DURATION = "silence_duration"
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "transcription_channel"
         private const val TAG = "TranscriptionService"
@@ -61,6 +63,8 @@ class TranscriptionService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
 
         val useMic = intent?.getBooleanExtra(EXTRA_USE_MIC, false) ?: false
+        val language = intent?.getStringExtra(EXTRA_LANGUAGE) ?: "auto"
+        val silenceDuration = intent?.getFloatExtra(EXTRA_SILENCE_DURATION, 0.4f) ?: 0.4f
         val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, Int.MIN_VALUE) ?: Int.MIN_VALUE
         val resultData: Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent?.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
@@ -79,10 +83,10 @@ class TranscriptionService : Service() {
                 stopSelf()
                 return@Thread
             }
-            initVad(vadModelPath)
+            initVad(vadModelPath, silenceDuration)
 
             // 初始化语音识别引擎
-            sherpaEngine.init(this, "/sdcard/sherpa-models/sense-voice")
+            sherpaEngine.init(this, "/sdcard/sherpa-models/sense-voice", language)
             if (!sherpaEngine.isReady()) {
                 Log.e(TAG, "Model failed to load")
                 mainHandler.post { onStatusUpdate?.invoke("模型加载失败，请检查 /sdcard/sherpa-models/sense-voice/ 目录") }
@@ -139,12 +143,12 @@ class TranscriptionService : Service() {
         }
     }
 
-    private fun initVad(modelPath: String) {
+    private fun initVad(modelPath: String, silenceDuration: Float = 0.4f) {
         val config = VadModelConfig(
             sileroVadModelConfig = SileroVadModelConfig(
                 model = modelPath,
                 threshold = 0.45f,
-                minSilenceDuration = 0.4f,
+                minSilenceDuration = silenceDuration,
                 minSpeechDuration = 0.15f,
                 windowSize = 512,
                 maxSpeechDuration = 15f,

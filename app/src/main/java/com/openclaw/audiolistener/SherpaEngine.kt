@@ -8,9 +8,9 @@ class SherpaEngine {
     private var recognizer: OfflineRecognizer? = null
     private val TAG = "SherpaEngine"
 
-    fun init(context: Context, modelDir: String) {
+    fun init(context: Context, modelDir: String, language: String = "auto") {
         try {
-            Log.i(TAG, "init() called, modelDir=$modelDir")
+            Log.i(TAG, "init() called, modelDir=$modelDir, language=$language")
             val modelFile = java.io.File("$modelDir/model.int8.onnx")
             val tokensFile = java.io.File("$modelDir/tokens.txt")
             Log.i(TAG, "model.int8.onnx exists=${modelFile.exists()}, size=${modelFile.length()}")
@@ -20,7 +20,7 @@ class SherpaEngine {
                 modelConfig = OfflineModelConfig(
                     senseVoice = OfflineSenseVoiceModelConfig(
                         model = "$modelDir/model.int8.onnx",
-                        language = "auto",
+                        language = language,
                         useInverseTextNormalization = true,
                     ),
                     tokens = "$modelDir/tokens.txt",

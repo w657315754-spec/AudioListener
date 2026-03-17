@@ -15,7 +15,7 @@ class SpeakerIdentifier {
     }
 
     @Volatile
-    var similarityThreshold = 0.6f
+    var similarityThreshold = 0.4f
 
     private var extractor: SpeakerEmbeddingExtractor? = null
     // 每个说话人保存最近的嵌入向量（取平均）
