@@ -38,6 +38,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvTranscription: TextView
     private lateinit var scrollView: ScrollView
+    private lateinit var switchOverlay: Switch
+    private lateinit var seekAlpha: SeekBar
+    private lateinit var tvAlpha: TextView
+    private lateinit var tvFilePath: TextView
+    private lateinit var btnNotion: Button
 
     // language codes matching spinner order
     private val languageCodes = arrayOf("auto", "zh", "en")
@@ -50,6 +55,8 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_LANGUAGE = "language"
         private const val KEY_SILENCE = "silence_progress"
         private const val KEY_THRESHOLD = "threshold_progress"
+        private const val KEY_OVERLAY = "overlay_enabled"
+        private const val KEY_ALPHA = "overlay_alpha"
     }
 
     private var transcriptionService: TranscriptionService? = null
@@ -134,6 +141,11 @@ class MainActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         tvTranscription = findViewById(R.id.tvTranscription)
         scrollView = findViewById(R.id.scrollView)
+        switchOverlay = findViewById(R.id.switchOverlay)
+        seekAlpha = findViewById(R.id.seekAlpha)
+        tvAlpha = findViewById(R.id.tvAlpha)
+        tvFilePath = findViewById(R.id.tvFilePath)
+        btnNotion = findViewById(R.id.btnNotion)
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -178,6 +190,50 @@ class MainActivity : AppCompatActivity() {
             if (isRunning) stopTranscription() else startTranscription()
         }
 
+        // 悬浮窗开关
+        switchOverlay.isChecked = prefs.getBoolean(KEY_OVERLAY, false)
+        seekAlpha.progress = prefs.getInt(KEY_ALPHA, 75) // (75+10) = 85%
+        tvAlpha.text = "${seekAlpha.progress + 10}%"
+
+        switchOverlay.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                if (Settings.canDrawOverlays(this)) {
+                    startService(Intent(this, OverlayService::class.java))
+                } else {
+                    switchOverlay.isChecked = false
+                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")))
+                }
+            } else {
+                stopService(Intent(this, OverlayService::class.java))
+            }
+        }
+
+        seekAlpha.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                val pct = progress + 10 // 10% ~ 100%
+                tvAlpha.text = "$pct%"
+                OverlayService.instance?.setOverlayAlpha(pct / 100f)
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        // 文件路径
+        tvFilePath.text = "保存: ${TextSaver.getFilePath()}"
+
+        // Notion 上传
+        btnNotion.setOnClickListener {
+            if (!NotionUploader.isConfigured()) {
+                setStatus("请配置 /sdcard/AudioListener/notion_api_key.txt 和 notion_page_id.txt")
+                return@setOnClickListener
+            }
+            setStatus("正在上传到 Notion...")
+            NotionUploader.uploadTodayFile { success, msg ->
+                runOnUiThread { setStatus(msg) }
+            }
+        }
+
         requestStoragePermissionIfNeeded()
     }
 
@@ -197,6 +253,8 @@ class MainActivity : AppCompatActivity() {
             .putInt(KEY_LANGUAGE, spinnerLanguage.selectedItemPosition)
             .putInt(KEY_SILENCE, seekSilence.progress)
             .putInt(KEY_THRESHOLD, seekThreshold.progress)
+            .putBoolean(KEY_OVERLAY, switchOverlay.isChecked)
+            .putInt(KEY_ALPHA, seekAlpha.progress)
             .apply()
     }
 
@@ -276,7 +334,7 @@ class MainActivity : AppCompatActivity() {
         transcriptionService = null
         isRunning = false
         updateButton()
-        setStatus("已停止")
+        setStatus("已停止\n保存路径: ${TextSaver.getFilePath()}")
     }
 
     private fun appendTranscription(text: String) {

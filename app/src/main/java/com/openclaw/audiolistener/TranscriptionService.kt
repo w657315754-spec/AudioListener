@@ -217,7 +217,11 @@ class TranscriptionService : Service() {
                             mainHandler.post {
                                 onTranscriptionResult?.invoke(displayText)
                                 onStatusUpdate?.invoke("转录中...")
+                                // 悬浮窗显示
+                                OverlayService.instance?.appendText(displayText)
                             }
+                            // 保存到文件
+                            TextSaver.save(displayText)
                         }
                     }
                 }

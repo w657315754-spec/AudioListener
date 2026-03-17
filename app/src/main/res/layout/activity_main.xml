@@ -104,6 +104,47 @@
 
     </LinearLayout>
 
+    <!-- 悬浮窗 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
+        android:gravity="center_vertical">
+
+        <Switch
+            android:id="@+id/switchOverlay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="悬浮窗"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="  透明度"
+            android:textSize="12sp" />
+
+        <SeekBar
+            android:id="@+id/seekAlpha"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:max="90"
+            android:progress="75" />
+
+        <TextView
+            android:id="@+id/tvAlpha"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="85%"
+            android:textSize="12sp"
+            android:minWidth="32dp" />
+
+    </LinearLayout>
+
     <Button
         android:id="@+id/btnToggle"
         android:layout_width="match_parent"
@@ -139,5 +180,33 @@
             android:lineSpacingExtra="4dp" />
 
     </ScrollView>
+
+    <!-- 底部信息和操作 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tvFilePath"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="10sp"
+            android:textColor="#888888" />
+
+        <Button
+            android:id="@+id/btnNotion"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="上传Notion"
+            android:textSize="11sp"
+            android:minWidth="0dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp" />
+
+    </LinearLayout>
 
 </LinearLayout>
