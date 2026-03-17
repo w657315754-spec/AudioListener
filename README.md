@@ -9,6 +9,10 @@ Android 离线语音转录工具。支持捕获系统音频（MediaProjection）
 - silero-vad 语音活动检测，按语句边界自动切分，不再固定时间切片
 - 说话人识别（可选）：基于 3D-Speaker 嵌入模型，自动区分不同发言人并标注 `[说话人N]`
 - 说话人区分灵敏度可通过界面滑块实时调节
+- 悬浮窗实时显示转录内容，可在其他应用上方查看，支持拖动移动、拖动缩放、透明度调节
+- 转录文本自动保存到 `/sdcard/AudioListener/日期.txt`，带时间戳
+- Notion 上传：将当天转录文件上传为 Notion 子页面
+- 所有设置（音频源、语言、停顿间隔、灵敏度、悬浮窗）自动保存
 - 前台服务运行，支持后台持续转录
 
 ## 环境要求
@@ -87,14 +91,43 @@ cd AudioListener
 
 ```
 app/src/main/java/com/openclaw/audiolistener/
-├── MainActivity.kt          # 主界面，权限请求、服务绑定、灵敏度滑块
+├── MainActivity.kt          # 主界面，权限请求、服务绑定、设置控件
 ├── TranscriptionService.kt  # 前台服务，协调 VAD + 语音识别 + 说话人识别
 ├── AudioCapture.kt          # 系统音频 / 麦克风音频捕获
 ├── SherpaEngine.kt          # 封装 sherpa-onnx 离线识别引擎
 ├── SpeakerIdentifier.kt     # 说话人嵌入提取 + 余弦相似度聚类
+├── OverlayService.kt        # 悬浮窗服务，通过 Intent 接收转录文字
+├── TextSaver.kt             # 转录文本保存到本地文件
+├── NotionUploader.kt        # 上传转录文件到 Notion
 ├── SherpaHelper.java        # Java 辅助类（绕过 Kotlin null-safety）
 └── SpeakerHelper.java       # Java 辅助类（说话人模型加载）
+
+app/src/main/res/layout/
+├── activity_main.xml        # 主界面布局
+└── overlay_layout.xml       # 悬浮窗布局
 ```
+
+## 悬浮窗
+
+开启悬浮窗开关后，转录文字会实时显示在屏幕上方的浮动窗口中，切换到其他应用也能看到。
+
+- 顶部拖动条：按住拖动可移动窗口位置
+- 底部拖动条：按住拖动可调节窗口大小
+- 透明度滑块：调节悬浮窗背景透明度（10% ~ 100%）
+- 位置、大小、透明度自动保存，下次打开恢复
+
+首次使用需授予「显示在其他应用上方」权限。
+
+## 文本保存与 Notion 上传
+
+转录文本自动保存到 `/sdcard/AudioListener/YYYY-MM-DD.txt`，每条记录带时间戳。
+
+如需上传到 Notion，在 `/sdcard/AudioListener/` 目录下创建两个配置文件：
+
+- `notion_api_key.txt` — 填入 Notion Integration Token
+- `notion_page_id.txt` — 填入目标页面 ID
+
+点击界面底部「上传Notion」按钮即可将当天文件上传为子页面。
 
 ## 工作流程
 
