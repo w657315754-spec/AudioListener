@@ -52,6 +52,8 @@ class SherpaEngine {
                 Log.e(TAG, "Streaming model files not found in $modelDir")
                 return
             }
+            // 端点参数放宽：静音 3 秒才断句，避免误断影响识别
+            val endSilence = silenceDuration.coerceAtLeast(3.0f)
             val config = OnlineRecognizerConfig(
                 modelConfig = OnlineModelConfig(
                     paraformer = OnlineParaformerModelConfig(
@@ -64,9 +66,9 @@ class SherpaEngine {
                     provider = "cpu",
                 ),
                 endpointConfig = EndpointConfig(
-                    rule1 = EndpointRule(false, silenceDuration * 3, 0f),
-                    rule2 = EndpointRule(true, silenceDuration, 0f),
-                    rule3 = EndpointRule(false, 0f, 15f),
+                    rule1 = EndpointRule(false, endSilence * 2, 0f),
+                    rule2 = EndpointRule(true, endSilence, 0f),
+                    rule3 = EndpointRule(false, 0f, 30f),
                 ),
                 enableEndpoint = true,
                 decodingMethod = "greedy_search",
