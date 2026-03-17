@@ -64,9 +64,9 @@ class SherpaEngine {
                     provider = "cpu",
                 ),
                 endpointConfig = EndpointConfig(
-                    rule1 = EndpointRule(false, 2.4f, 0f),
-                    rule2 = EndpointRule(true, 1.2f, 0f),
-                    rule3 = EndpointRule(false, 0f, 20f),
+                    rule1 = EndpointRule(false, 1.4f, 0f),
+                    rule2 = EndpointRule(true, 0.8f, 0f),
+                    rule3 = EndpointRule(false, 0f, 15f),
                 ),
                 enableEndpoint = true,
                 decodingMethod = "greedy_search",

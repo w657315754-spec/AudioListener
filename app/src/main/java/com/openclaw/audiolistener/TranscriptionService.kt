@@ -278,15 +278,17 @@ class TranscriptionService : Service() {
     private fun emitResult(text: String) {
         TextSaver.save(text)
         mainHandler.post { onTranscriptionResult?.invoke(text) }
-        // 发送到悬浮窗
-        try {
-            val overlayIntent = Intent(this, OverlayService::class.java).apply {
-                action = OverlayService.ACTION_APPEND_TEXT
-                putExtra(OverlayService.EXTRA_TEXT, text)
+        // 仅在悬浮窗已启动时发送文字，避免自动弹出悬浮窗
+        if (OverlayService.instance != null) {
+            try {
+                val overlayIntent = Intent(this, OverlayService::class.java).apply {
+                    action = OverlayService.ACTION_APPEND_TEXT
+                    putExtra(OverlayService.EXTRA_TEXT, text)
+                }
+                startService(overlayIntent)
+            } catch (e: Exception) {
+                Log.w(TAG, "Overlay send failed: ${e.message}")
             }
-            startService(overlayIntent)
-        } catch (e: Exception) {
-            Log.w(TAG, "Overlay send failed: ${e.message}")
         }
     }
 
