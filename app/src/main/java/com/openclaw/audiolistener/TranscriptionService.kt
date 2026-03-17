@@ -58,6 +58,10 @@ class TranscriptionService : Service() {
 
     private var useStreaming = false
     @Volatile private var lastPartialText = ""
+    // 流式模式：上一次端点确认的时间戳，用于判断长停顿插入段落分隔
+    @Volatile private var lastEndpointTime = 0L
+    // 长停顿阈值（毫秒），超过此值插入空行
+    private val paragraphPauseMs = 3000L
 
     override fun onCreate() {
         super.onCreate()
@@ -207,11 +211,22 @@ class TranscriptionService : Service() {
         val result = sherpaEngine.getStreamingResult() ?: return
         if (result.isFinal) {
             // 端点检测到句子结束 → 作为最终结果
-            val text = result.text.trim()
+            var text = result.text.trim()
             if (text.isNotEmpty()) {
+                // 简单标点：根据末尾字符判断
+                text = addSimplePunctuation(text)
+                // 长停顿段落分隔
+                val now = System.currentTimeMillis()
+                val needParagraph = lastEndpointTime > 0 && (now - lastEndpointTime) > paragraphPauseMs
+                lastEndpointTime = now
+
                 lastPartialText = ""
                 mainHandler.post { onStreamingPartial?.invoke("") }
-                emitResult(text)
+                if (needParagraph) {
+                    emitResult("\n$text")
+                } else {
+                    emitResult(text)
+                }
             }
         } else {
             // 中间结果 → 覆盖显示
@@ -221,6 +236,17 @@ class TranscriptionService : Service() {
                 mainHandler.post { onStreamingPartial?.invoke(text) }
             }
         }
+    }
+
+    /** 简单标点规则：给没有标点的句子末尾加标点 */
+    private fun addSimplePunctuation(text: String): String {
+        if (text.isEmpty()) return text
+        val last = text.last()
+        // 已有标点则不加
+        if (last in "。，！？、；：…—,.!?;:") return text
+        // 疑问词结尾加问号
+        val questionEndings = charArrayOf('吗', '呢', '吧', '么', '嘛', '啊')
+        return if (last in questionEndings) "${text}？" else "${text}。"
     }
 
     /** 离线模式：VAD 分段 → SenseVoice 解码 */
