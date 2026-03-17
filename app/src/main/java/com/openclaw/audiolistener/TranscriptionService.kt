@@ -87,7 +87,7 @@ class TranscriptionService : Service() {
             mainHandler.post { onStatusUpdate?.invoke("初始化中，请稍候...") }
 
             if (useStreaming) {
-                initStreamingMode()
+                initStreamingMode(silenceDuration)
             } else {
                 initOfflineMode(language, silenceDuration)
             }
@@ -128,9 +128,9 @@ class TranscriptionService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun initStreamingMode() {
-        sherpaEngine.initStreaming("/sdcard/sherpa-models/streaming-paraformer")
-        Log.i(TAG, "Streaming mode initialized, ready=${sherpaEngine.isReady()}")
+    private fun initStreamingMode(silenceDuration: Float) {
+        sherpaEngine.initStreaming("/sdcard/sherpa-models/streaming-paraformer", silenceDuration)
+        Log.i(TAG, "Streaming mode initialized, silenceDuration=$silenceDuration, ready=${sherpaEngine.isReady()}")
     }
 
     private fun initOfflineMode(language: String, silenceDuration: Float) {

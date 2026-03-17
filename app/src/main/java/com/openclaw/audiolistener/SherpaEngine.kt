@@ -42,9 +42,9 @@ class SherpaEngine {
 
     // ── 流式模式（Streaming Paraformer）──
 
-    fun initStreaming(modelDir: String) {
+    fun initStreaming(modelDir: String, silenceDuration: Float = 0.4f) {
         try {
-            Log.i(TAG, "initStreaming: modelDir=$modelDir")
+            Log.i(TAG, "initStreaming: modelDir=$modelDir, silenceDuration=$silenceDuration")
             val encoderFile = java.io.File("$modelDir/encoder.int8.onnx")
             val decoderFile = java.io.File("$modelDir/decoder.int8.onnx")
             val tokensFile = java.io.File("$modelDir/tokens.txt")
@@ -64,8 +64,8 @@ class SherpaEngine {
                     provider = "cpu",
                 ),
                 endpointConfig = EndpointConfig(
-                    rule1 = EndpointRule(false, 1.4f, 0f),
-                    rule2 = EndpointRule(true, 0.8f, 0f),
+                    rule1 = EndpointRule(false, silenceDuration * 3, 0f),
+                    rule2 = EndpointRule(true, silenceDuration, 0f),
                     rule3 = EndpointRule(false, 0f, 15f),
                 ),
                 enableEndpoint = true,
