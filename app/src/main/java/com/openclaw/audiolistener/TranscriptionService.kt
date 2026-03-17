@@ -58,10 +58,10 @@ class TranscriptionService : Service() {
 
     private var useStreaming = false
     @Volatile private var lastPartialText = ""
-    // 流式模式：上一次端点确认的时间戳，用于判断长停顿插入段落分隔
     @Volatile private var lastEndpointTime = 0L
-    // 长停顿阈值（毫秒），超过此值插入空行
     private val paragraphPauseMs = 3000L
+    // 流式模式：缓存当前句子的音频，用于端点确认后做说话人识别
+    private val streamingAudioBuffer = mutableListOf<FloatArray>()
 
     override fun onCreate() {
         super.onCreate()
@@ -102,11 +102,13 @@ class TranscriptionService : Service() {
                 return@Thread
             }
 
-            if (!useStreaming) {
-                initSpeakerIdentifier()
-            }
+            // 说话人识别（两种模式都支持）
+            initSpeakerIdentifier()
 
-            val modeDesc = if (useStreaming) "流式" else {
+            val modeDesc = if (useStreaming) {
+                val sp = if (speakerIdentifier.isReady()) " + 说话人识别" else ""
+                "流式$sp"
+            } else {
                 val sp = if (speakerIdentifier.isReady()) " + 说话人识别" else ""
                 "VAD$sp"
             }
@@ -206,16 +208,25 @@ class TranscriptionService : Service() {
     /** 流式模式：直接喂入 OnlineRecognizer，轮询结果 */
     private fun onAudioDataStreaming(data: ShortArray) {
         val samples = FloatArray(data.size) { data[it] / 32768.0f }
+        // 缓存音频用于说话人识别
+        streamingAudioBuffer.add(samples)
         sherpaEngine.feedStreaming(samples, SAMPLE_RATE)
 
         val result = sherpaEngine.getStreamingResult() ?: return
         if (result.isFinal) {
-            // 端点检测到句子结束 → 作为最终结果
             var text = result.text.trim()
             if (text.isNotEmpty()) {
-                // 简单标点：根据末尾字符判断
                 text = addSimplePunctuation(text)
-                // 长停顿段落分隔
+                // 说话人识别：用缓存的完整音频
+                if (speakerIdentifier.isReady()) {
+                    val allSamples = mergeAudioBuffer()
+                    if (allSamples.size > SAMPLE_RATE / 10) { // 至少 0.1 秒
+                        val label = speakerIdentifier.identify(allSamples, SAMPLE_RATE)
+                        text = "[$label] $text"
+                    }
+                }
+                streamingAudioBuffer.clear()
+
                 val now = System.currentTimeMillis()
                 val needParagraph = lastEndpointTime > 0 && (now - lastEndpointTime) > paragraphPauseMs
                 lastEndpointTime = now
@@ -227,15 +238,28 @@ class TranscriptionService : Service() {
                 } else {
                     emitResult(text)
                 }
+            } else {
+                streamingAudioBuffer.clear()
             }
         } else {
-            // 中间结果 → 覆盖显示
             val text = result.text.trim()
             if (text != lastPartialText) {
                 lastPartialText = text
                 mainHandler.post { onStreamingPartial?.invoke(text) }
             }
         }
+    }
+
+    /** 合并流式音频缓存为一个 FloatArray */
+    private fun mergeAudioBuffer(): FloatArray {
+        val total = streamingAudioBuffer.sumOf { it.size }
+        val result = FloatArray(total)
+        var offset = 0
+        for (chunk in streamingAudioBuffer) {
+            chunk.copyInto(result, offset)
+            offset += chunk.size
+        }
+        return result
     }
 
     /** 简单标点规则：给没有标点的句子末尾加标点 */
