@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">AudioListener</string>
+    <string name="start_transcription">开始转录</string>
+    <string name="stop_transcription">停止转录</string>
+    <string name="use_mic_mode">使用麦克风（关闭则捕获系统音频）</string>
+    <string name="transcription_hint">转录结果将显示在这里...</string>
+    <string name="notification_channel_name">转录服务</string>
+    <string name="notification_title">AudioListener 运行中</string>
+    <string name="notification_text">正在录制并转录音频</string>
+</resources>
