@@ -13,6 +13,16 @@
         android:textSize="14sp"
         android:checked="false" />
 
+    <!-- 识别模式 -->
+    <Switch
+        android:id="@+id/switchStreaming"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="流式识别（边说边出字）"
+        android:textSize="14sp"
+        android:checked="false"
+        android:layout_marginTop="4dp" />
+
     <!-- 识别语言 -->
     <LinearLayout
         android:layout_width="match_parent"

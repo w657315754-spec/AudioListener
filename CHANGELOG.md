@@ -1,5 +1,24 @@
 # 更新日志
 
+## v1.4.0 (2026-03-17)
+
+### 新功能
+
+- 新增流式识别模式（Streaming Paraformer），支持边说边出字，实时显示中间结果
+  - 使用 sherpa-onnx OnlineRecognizer + Streaming Paraformer 双语模型（中英文）
+  - 端点检测自动断句，无需 VAD 分段
+  - 中间结果以 🔄 前缀实时覆盖显示，确认后追加为正式文本
+- 界面新增「流式识别」开关，可在离线（SenseVoice + VAD）和流式（Streaming Paraformer）两种模式间切换
+- 流式模式设置通过 SharedPreferences 自动保存
+- 转录运行时流式开关自动禁用，需停止后切换
+- 模型状态检测同时检查离线和流式模型，分别提示
+
+### 流式模型下载
+
+- 下载 `sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2`
+- 解压后将 `encoder.int8.onnx`、`decoder.int8.onnx`、`tokens.txt` 放入 `/sdcard/sherpa-models/streaming-paraformer/`
+- 下载地址：https://github.com/k2-fsa/sherpa-onnx/releases
+
 ## v1.3.1 (2026-03-17)
 
 ### Bug 修复

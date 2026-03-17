@@ -5,16 +5,19 @@ import android.content.Context
 import android.util.Log
 
 class SherpaEngine {
-    private var recognizer: OfflineRecognizer? = null
+    private var offlineRecognizer: OfflineRecognizer? = null
+    private var onlineRecognizer: OnlineRecognizer? = null
+    private var onlineStream: OnlineStream? = null
     private val TAG = "SherpaEngine"
 
-    fun init(context: Context, modelDir: String, language: String = "auto") {
+    var isStreamingMode = false
+        private set
+
+    // ── 离线模式（VAD + SenseVoice）──
+
+    fun initOffline(context: Context, modelDir: String, language: String = "auto") {
         try {
-            Log.i(TAG, "init() called, modelDir=$modelDir, language=$language")
-            val modelFile = java.io.File("$modelDir/model.int8.onnx")
-            val tokensFile = java.io.File("$modelDir/tokens.txt")
-            Log.i(TAG, "model.int8.onnx exists=${modelFile.exists()}, size=${modelFile.length()}")
-            Log.i(TAG, "tokens.txt exists=${tokensFile.exists()}, size=${tokensFile.length()}")
+            Log.i(TAG, "initOffline: modelDir=$modelDir, language=$language")
             val config = OfflineRecognizerConfig(
                 featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),
                 modelConfig = OfflineModelConfig(
@@ -29,42 +32,66 @@ class SherpaEngine {
                     provider = "cpu",
                 ),
             )
-            // 用 Java helper 绕过 Kotlin null-safety，JNI 层把路径当文件系统绝对路径处理
-            recognizer = SherpaHelper.createRecognizer(config)
-            Log.i(TAG, "Sherpa-ONNX initialized from $modelDir")
+            offlineRecognizer = SherpaHelper.createRecognizer(config)
+            isStreamingMode = false
+            Log.i(TAG, "Offline recognizer initialized")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to init Sherpa-ONNX: ${e.message}", e)
+            Log.e(TAG, "Failed to init offline: ${e.message}", e)
         }
     }
 
-    fun isReady(): Boolean = recognizer != null
+    // ── 流式模式（Streaming Paraformer）──
 
-    fun decode(pcm: ShortArray, sampleRate: Int = 16000): String {
-        val r = recognizer ?: run {
-            Log.e(TAG, "decode called but recognizer is null!")
-            return "[引擎未初始化，请将模型文件放入 /sdcard/sherpa-models/sense-voice/]"
-        }
-        return try {
-            val floatArray = FloatArray(pcm.size) { pcm[it] / 32768.0f }
-            decodeFloat(floatArray, sampleRate)
+    fun initStreaming(modelDir: String) {
+        try {
+            Log.i(TAG, "initStreaming: modelDir=$modelDir")
+            val encoderFile = java.io.File("$modelDir/encoder.int8.onnx")
+            val decoderFile = java.io.File("$modelDir/decoder.int8.onnx")
+            val tokensFile = java.io.File("$modelDir/tokens.txt")
+            if (!encoderFile.exists() || !decoderFile.exists() || !tokensFile.exists()) {
+                Log.e(TAG, "Streaming model files not found in $modelDir")
+                return
+            }
+            val config = OnlineRecognizerConfig(
+                modelConfig = OnlineModelConfig(
+                    paraformer = OnlineParaformerModelConfig(
+                        encoder = "$modelDir/encoder.int8.onnx",
+                        decoder = "$modelDir/decoder.int8.onnx",
+                    ),
+                    tokens = "$modelDir/tokens.txt",
+                    numThreads = 4,
+                    debug = false,
+                    provider = "cpu",
+                ),
+                endpointConfig = EndpointConfig(
+                    rule1 = EndpointRule(false, 2.4f, 0f),
+                    rule2 = EndpointRule(true, 1.2f, 0f),
+                    rule3 = EndpointRule(false, 0f, 20f),
+                ),
+                enableEndpoint = true,
+                decodingMethod = "greedy_search",
+            )
+            onlineRecognizer = SherpaHelper.createOnlineRecognizer(config)
+            onlineStream = onlineRecognizer?.createStream()
+            isStreamingMode = true
+            Log.i(TAG, "Streaming recognizer initialized")
         } catch (e: Exception) {
-            Log.e(TAG, "decode error: ${e.message}", e)
-            "[转录出错: ${e.message}]"
+            Log.e(TAG, "Failed to init streaming: ${e.message}", e)
         }
     }
+
+    fun isReady(): Boolean = if (isStreamingMode) onlineRecognizer != null else offlineRecognizer != null
+
+    // ── 离线解码 ──
 
     fun decodeFloat(samples: FloatArray, sampleRate: Int = 16000): String {
-        val r = recognizer ?: run {
-            Log.e(TAG, "decodeFloat called but recognizer is null!")
-            return "[引擎未初始化]"
-        }
+        val r = offlineRecognizer ?: return "[引擎未初始化]"
         return try {
             val stream = r.createStream()
             stream.acceptWaveform(samples, sampleRate)
             r.decode(stream)
             val result = r.getResult(stream)
             stream.release()
-            Log.d(TAG, "decode result: ${result.text}")
             result.text.ifEmpty { "[无识别结果]" }
         } catch (e: Exception) {
             Log.e(TAG, "decodeFloat error: ${e.message}", e)
@@ -72,9 +99,39 @@ class SherpaEngine {
         }
     }
 
+    // ── 流式：喂入音频 ──
+
+    fun feedStreaming(samples: FloatArray, sampleRate: Int = 16000) {
+        val stream = onlineStream ?: return
+        stream.acceptWaveform(samples, sampleRate)
+    }
+
+    // ── 流式：尝试获取结果 ──
+
+    fun getStreamingResult(): StreamingResult? {
+        val r = onlineRecognizer ?: return null
+        val s = onlineStream ?: return null
+        if (!r.isReady(s)) return null
+        r.decode(s)
+        val result = r.getResult(s)
+        val text = result.text.trim()
+        val isEndpoint = r.isEndpoint(s)
+        if (isEndpoint) {
+            r.reset(s)
+        }
+        return if (text.isNotEmpty()) StreamingResult(text, isEndpoint) else null
+    }
+
+    data class StreamingResult(val text: String, val isFinal: Boolean)
+
     fun release() {
-        recognizer?.release()
-        recognizer = null
+        onlineStream?.release()
+        onlineStream = null
+        onlineRecognizer?.release()
+        onlineRecognizer = null
+        offlineRecognizer?.release()
+        offlineRecognizer = null
+        isStreamingMode = false
         Log.i(TAG, "SherpaEngine released")
     }
 }

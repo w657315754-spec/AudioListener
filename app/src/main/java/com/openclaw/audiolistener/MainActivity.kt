@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAlpha: TextView
     private lateinit var tvFilePath: TextView
     private lateinit var btnNotion: Button
+    private lateinit var switchStreaming: Switch
 
     // language codes matching spinner order
     private val languageCodes = arrayOf("auto", "zh", "en")
@@ -57,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_THRESHOLD = "threshold_progress"
         private const val KEY_OVERLAY = "overlay_enabled"
         private const val KEY_ALPHA = "overlay_alpha"
+        private const val KEY_STREAMING = "streaming"
     }
 
     private var transcriptionService: TranscriptionService? = null
@@ -75,6 +77,9 @@ class MainActivity : AppCompatActivity() {
             transcriptionService?.onStatusUpdate = { status ->
                 runOnUiThread { setStatus(status) }
             }
+            transcriptionService?.onStreamingPartial = { partial ->
+                runOnUiThread { updateStreamingPartial(partial) }
+            }
             // 同步当前阈值到 service
             val threshold = seekThreshold.progress / 100f
             transcriptionService?.speakerThreshold = threshold
@@ -84,6 +89,7 @@ class MainActivity : AppCompatActivity() {
                 putExtra(TranscriptionService.EXTRA_USE_MIC, pendingUseMic)
                 putExtra(TranscriptionService.EXTRA_LANGUAGE, selectedLanguage)
                 putExtra(TranscriptionService.EXTRA_SILENCE_DURATION, silenceDuration)
+                putExtra(TranscriptionService.EXTRA_STREAMING, switchStreaming.isChecked)
                 if (!pendingUseMic) {
                     putExtra(TranscriptionService.EXTRA_RESULT_CODE, pendingResultCode)
                     putExtra(TranscriptionService.EXTRA_RESULT_DATA, pendingResultData)
@@ -147,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         tvAlpha = findViewById(R.id.tvAlpha)
         tvFilePath = findViewById(R.id.tvFilePath)
         btnNotion = findViewById(R.id.btnNotion)
+        switchStreaming = findViewById(R.id.switchStreaming)
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -156,6 +163,7 @@ class MainActivity : AppCompatActivity() {
 
         // 恢复保存的设置
         switchMic.isChecked = prefs.getBoolean(KEY_USE_MIC, false)
+        switchStreaming.isChecked = prefs.getBoolean(KEY_STREAMING, false)
         spinnerLanguage.setSelection(prefs.getInt(KEY_LANGUAGE, 0))
         seekSilence.progress = prefs.getInt(KEY_SILENCE, 7)   // 默认 (7+1)*0.05 = 0.40s
         seekThreshold.progress = prefs.getInt(KEY_THRESHOLD, 40) // 默认 40/100 = 0.40
@@ -251,6 +259,7 @@ class MainActivity : AppCompatActivity() {
     private fun saveSettings() {
         prefs.edit()
             .putBoolean(KEY_USE_MIC, switchMic.isChecked)
+            .putBoolean(KEY_STREAMING, switchStreaming.isChecked)
             .putInt(KEY_LANGUAGE, spinnerLanguage.selectedItemPosition)
             .putInt(KEY_SILENCE, seekSilence.progress)
             .putInt(KEY_THRESHOLD, seekThreshold.progress)
@@ -275,15 +284,27 @@ class MainActivity : AppCompatActivity() {
         modelDir.mkdirs()
         val modelFile = File(modelDir, "model.int8.onnx")
         val tokensFile = File(modelDir, "tokens.txt")
-        if (!modelFile.exists() || !tokensFile.exists()) {
+        val streamingDir = File("/sdcard/sherpa-models/streaming-paraformer")
+        val hasOffline = modelFile.exists() && tokensFile.exists()
+        val hasStreaming = File(streamingDir, "encoder.int8.onnx").exists()
+                && File(streamingDir, "decoder.int8.onnx").exists()
+                && File(streamingDir, "tokens.txt").exists()
+
+        if (!hasOffline && !hasStreaming) {
             btnToggle.isEnabled = false
-            tvStatus.text = "模型文件未找到，请将以下文件放入 /sdcard/sherpa-models/sense-voice/：\n• model.int8.onnx\n• tokens.txt\n\n下载地址：https://github.com/k2-fsa/sherpa-onnx/releases"
+            tvStatus.text = "模型文件未找到，请将以下文件放入对应目录：\n" +
+                "离线：/sdcard/sherpa-models/sense-voice/\n" +
+                "流式：/sdcard/sherpa-models/streaming-paraformer/\n\n" +
+                "下载地址：https://github.com/k2-fsa/sherpa-onnx/releases"
         } else {
             btnToggle.isEnabled = true
+            val hints = mutableListOf<String>()
+            if (!hasOffline) hints.add("离线模型未找到（SenseVoice）")
+            if (!hasStreaming) hints.add("流式模型未找到（Streaming Paraformer）")
             val speakerModel = File("/sdcard/sherpa-models/speaker/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx")
-            val hint = if (speakerModel.exists()) "点击开始转录（说话人识别已就绪）"
-                       else "点击开始转录\n提示：放入说话人模型可区分发言人\n路径：/sdcard/sherpa-models/speaker/\n文件：3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
-            if (!isRunning) setStatus(hint)
+            if (speakerModel.exists()) hints.add("说话人识别已就绪")
+            else hints.add("提示：放入说话人模型可区分发言人")
+            if (!isRunning) setStatus("点击开始转录\n${hints.joinToString("\n")}")
         }
     }
 
@@ -334,12 +355,15 @@ class MainActivity : AppCompatActivity() {
         stopService(Intent(this, TranscriptionService::class.java))
         transcriptionService = null
         isRunning = false
+        streamingLineStart = -1
         updateButton()
         setStatus("已停止\n保存路径: ${TextSaver.getFilePath()}")
     }
 
     private fun appendTranscription(text: String) {
         if (text.isBlank()) return
+        // 重置流式中间结果位置
+        streamingLineStart = -1
         val current = tvTranscription.text.toString()
         val updated = if (current == getString(R.string.transcription_hint)) text
                       else "$current\n$text"
@@ -347,10 +371,32 @@ class MainActivity : AppCompatActivity() {
         scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
     }
 
+    /** 流式中间结果：覆盖最后一行（未确认的部分） */
+    private var streamingLineStart = -1
+
+    private fun updateStreamingPartial(partial: String) {
+        val current = tvTranscription.text.toString()
+        if (partial.isEmpty()) {
+            // 清除中间状态
+            streamingLineStart = -1
+            return
+        }
+        if (streamingLineStart < 0) {
+            // 记录当前文本末尾位置，作为中间结果的起点
+            streamingLineStart = current.length
+        }
+        val base = if (streamingLineStart == 0 && current == getString(R.string.transcription_hint)) ""
+                   else current.substring(0, streamingLineStart.coerceAtMost(current.length))
+        val sep = if (base.isEmpty()) "" else "\n"
+        tvTranscription.text = "$base$sep🔄 $partial"
+        scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+    }
+
     private fun updateButton() {
         btnToggle.text = if (isRunning) getString(R.string.stop_transcription)
                          else getString(R.string.start_transcription)
         switchMic.isEnabled = !isRunning
+        switchStreaming.isEnabled = !isRunning
         spinnerLanguage.isEnabled = !isRunning
         seekSilence.isEnabled = !isRunning
     }

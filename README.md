@@ -1,13 +1,14 @@
 # AudioListener
 
-Android 离线语音转录工具。支持捕获系统音频（MediaProjection）或麦克风录音，使用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) + SenseVoice 进行离线语音识别，集成 VAD 语音活动检测按语句自动分段，可选说话人识别区分不同发言人。
+Android 离线语音转录工具。支持捕获系统音频（MediaProjection）或麦克风录音，使用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 进行离线语音识别。支持两种识别模式：离线模式（SenseVoice + VAD 分段）和流式模式（Streaming Paraformer，边说边出字）。可选说话人识别区分不同发言人。
 
 ## 功能
 
 - 两种音频源：系统音频捕获（媒体、游戏、语音助手等）/ 麦克风录音
-- 离线语音识别，无需联网，基于 SenseVoice 模型
-- silero-vad 语音活动检测，按语句边界自动切分，不再固定时间切片
-- 说话人识别（可选）：基于 3D-Speaker 嵌入模型，自动区分不同发言人并标注 `[说话人N]`
+- 两种识别模式：
+  - 离线模式：SenseVoice + silero-vad，按语句边界自动切分后整段识别，准确率高
+  - 流式模式：Streaming Paraformer，边说边出字，实时显示中间结果（🔄 前缀），端点检测自动断句
+- 说话人识别（可选，仅离线模式）：基于 3D-Speaker 嵌入模型，自动区分不同发言人并标注 `[说话人N]`
 - 说话人区分灵敏度可通过界面滑块实时调节
 - 悬浮窗实时显示转录内容，可在其他应用上方查看，支持拖动移动、拖动缩放、透明度调节
 - 转录文本自动保存到 `/sdcard/AudioListener/日期.txt`，带时间戳
@@ -72,7 +73,30 @@ Android 离线语音转录工具。支持捕获系统音频（MediaProjection）
 直接下载链接：
 - [3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx](https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx)
 
-### 3. VAD 模型（已内置）
+### 3. 流式识别模型（可选，流式模式需要）
+
+从 sherpa-onnx 发布页下载 Streaming Paraformer 双语模型：
+
+- 下载地址：https://github.com/k2-fsa/sherpa-onnx/releases
+- 模型名称：`sherpa-onnx-streaming-paraformer-bilingual-zh-en`
+- 需要的文件：
+  - `encoder.int8.onnx` — 编码器
+  - `decoder.int8.onnx` — 解码器
+  - `tokens.txt` — 词表文件
+
+放入设备路径：
+
+```
+/sdcard/sherpa-models/streaming-paraformer/
+├── encoder.int8.onnx
+├── decoder.int8.onnx
+└── tokens.txt
+```
+
+直接下载链接：
+- [sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2)（解压后取上述三个文件）
+
+### 4. VAD 模型（已内置）
 
 silero-vad 模型（`silero_vad.onnx`，629KB）已打包在 APK assets 中，首次启动自动解压，无需手动下载。
 
@@ -92,9 +116,9 @@ cd AudioListener
 ```
 app/src/main/java/com/openclaw/audiolistener/
 ├── MainActivity.kt          # 主界面，权限请求、服务绑定、设置控件
-├── TranscriptionService.kt  # 前台服务，协调 VAD + 语音识别 + 说话人识别
+├── TranscriptionService.kt  # 前台服务，协调 VAD + 语音识别 + 说话人识别（支持离线/流式双模式）
 ├── AudioCapture.kt          # 系统音频 / 麦克风音频捕获
-├── SherpaEngine.kt          # 封装 sherpa-onnx 离线识别引擎
+├── SherpaEngine.kt          # 封装 sherpa-onnx 离线/流式识别引擎
 ├── SpeakerIdentifier.kt     # 说话人嵌入提取 + 余弦相似度聚类
 ├── OverlayService.kt        # 悬浮窗服务，通过 Intent 接收转录文字
 ├── TextSaver.kt             # 转录文本保存到本地文件
@@ -131,6 +155,8 @@ app/src/main/res/layout/
 
 ## 工作流程
 
+### 离线模式（默认）
+
 1. 用户选择音频源（系统音频 / 麦克风），点击「开始转录」
 2. 请求必要权限，启动前台服务
 3. 加载 VAD 模型、SenseVoice 识别模型、说话人模型（如有）
@@ -138,6 +164,14 @@ app/src/main/res/layout/
 5. VAD 检测到完整语句后，将音频段送入 SenseVoice 识别文字
 6. 同时用 3D-Speaker 提取说话人嵌入，通过余弦相似度匹配或注册新说话人
 7. 结果以 `[说话人N] 识别文字` 格式显示在界面上
+
+### 流式模式
+
+1. 开启「流式识别」开关，选择音频源，点击「开始转录」
+2. 加载 Streaming Paraformer 模型
+3. 音频数据实时喂入 OnlineRecognizer
+4. 中间结果以 🔄 前缀实时覆盖显示
+5. 端点检测到句子结束后，确认为最终结果并追加显示
 
 ## 依赖
 
