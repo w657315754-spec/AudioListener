@@ -218,6 +218,7 @@ class TranscriptionService : Service() {
                                 onTranscriptionResult?.invoke(displayText)
                                 onStatusUpdate?.invoke("转录中...")
                                 // 悬浮窗显示
+                                Log.i(TAG, "Sending to overlay, instance=${OverlayService.instance}, text=$displayText")
                                 OverlayService.instance?.appendText(displayText)
                             }
                             // 保存到文件

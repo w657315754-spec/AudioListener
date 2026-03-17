@@ -74,6 +74,18 @@ class OverlayService : Service() {
 
     private fun createOverlayView() {
         val dp8 = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8f, resources.displayMetrics).toInt()
+        val dp32 = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32f, resources.displayMetrics).toInt()
+
+        // 顶部拖动条（用于移动）
+        val dragHandle = TextView(this).apply {
+            text = "⠿ 拖动移动"
+            setTextColor(Color.argb(180, 255, 255, 255))
+            textSize = 11f
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.argb(100, 100, 100, 100))
+            minimumHeight = dp32
+            setPadding(dp8, 0, dp8, 0)
+        }
 
         tvOverlayContent = TextView(this).apply {
             setTextColor(Color.WHITE)
@@ -95,6 +107,9 @@ class OverlayService : Service() {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.argb((overlayAlpha * 255).toInt(), 0, 0, 0))
+            addView(dragHandle, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(scrollView, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
             addView(resizeHandle, LinearLayout.LayoutParams(
@@ -102,9 +117,9 @@ class OverlayService : Service() {
                 LinearLayout.LayoutParams.WRAP_CONTENT))
         }
 
-        // 拖动移动
-        setupDragToMove(scrollView)
-        // 底部条拖动缩放
+        // 顶部 dragHandle 用于移动
+        setupDragToMove(dragHandle)
+        // 底部条用于缩放
         setupDragToResize(resizeHandle)
 
         overlayView = container
@@ -171,10 +186,15 @@ class OverlayService : Service() {
     }
 
     fun appendText(text: String) {
-        val current = tvOverlayContent.text.toString()
-        val updated = if (current.isBlank()) text else "$current\n$text"
-        tvOverlayContent.text = updated
-        scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+        Log.i(TAG, "appendText called: $text, instance=$instance")
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        handler.post {
+            val current = tvOverlayContent.text.toString()
+            val updated = if (current.isBlank()) text else "$current\n$text"
+            tvOverlayContent.text = updated
+            scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+            Log.i(TAG, "appendText done: $text")
+        }
     }
 
     fun setOverlayAlpha(alpha: Float) {
