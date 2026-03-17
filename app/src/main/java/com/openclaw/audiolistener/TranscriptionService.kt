@@ -217,7 +217,18 @@ class TranscriptionService : Service() {
                             mainHandler.post {
                                 onTranscriptionResult?.invoke(displayText)
                                 onStatusUpdate?.invoke("转录中...")
-                                OverlayService.instance?.appendText(displayText)
+                                // 通过 Intent 发送文字到悬浮窗（可靠方式）
+                                try {
+                                    val overlayIntent = Intent(this@TranscriptionService, OverlayService::class.java).apply {
+                                        action = OverlayService.ACTION_APPEND_TEXT
+                                        putExtra(OverlayService.EXTRA_TEXT, displayText)
+                                    }
+                                    startService(overlayIntent)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to send text to overlay via Intent: ${e.message}")
+                                    // 回退到静态引用
+                                    OverlayService.instance?.appendText(displayText)
+                                }
                             }
                             // 保存到文件
                             TextSaver.save(displayText)

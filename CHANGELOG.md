@@ -4,7 +4,12 @@
 
 ### Bug 修复
 
-- 修复悬浮窗不显示转录文字的问题：`startService()` 是异步的，`OverlayService.instance` 在赋值时还未初始化。移除 `TranscriptionService.overlayInstance` 中间变量，改为直接使用 `OverlayService.instance` 单例，确保转录结果到达时悬浮窗已就绪
+- 修复悬浮窗不显示转录文字的问题
+  - 根因：`OverlayService` 作为普通 Service 在应用切后台后可能被系统回收，导致 `OverlayService.instance` 为 null
+  - 改用 Intent 通信：`TranscriptionService` 通过 `startService(intent)` 将文字发送给 `OverlayService`，这是 Android 标准的跨服务通信方式，不依赖静态引用
+  - 悬浮窗布局改为 XML 文件（`overlay_layout.xml`），通过 `LayoutInflater` 加载，参考开源项目最佳实践
+  - `OverlayService` 改为 `START_STICKY`，被系统回收后自动重建
+  - 保留静态 `instance` 引用作为回退方案
 
 ## v1.3.0 (2026-03-17)
 

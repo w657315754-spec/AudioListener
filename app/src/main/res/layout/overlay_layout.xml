@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/overlayContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#D9000000">
+
+    <!-- 顶部拖动条 -->
+    <TextView
+        android:id="@+id/dragHandle"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:text="⠿ 拖动移动"
+        android:textColor="#B0FFFFFF"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:background="#64646464" />
+
+    <ScrollView
+        android:id="@+id/overlayScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="vertical">
+
+        <TextView
+            android:id="@+id/tvOverlayContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:padding="8dp" />
+
+    </ScrollView>
+
+    <!-- 底部缩放条 -->
+    <View
+        android:id="@+id/resizeHandle"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:background="#78FFFFFF" />
+
+</LinearLayout>
