@@ -32,8 +32,6 @@ class TranscriptionService : Service() {
         private const val CHANNEL_ID = "transcription_channel"
         private const val TAG = "TranscriptionService"
         private const val SAMPLE_RATE = 16000
-
-        @Volatile var overlayInstance: OverlayService? = null
     }
 
     inner class LocalBinder : Binder() {
@@ -219,10 +217,7 @@ class TranscriptionService : Service() {
                             mainHandler.post {
                                 onTranscriptionResult?.invoke(displayText)
                                 onStatusUpdate?.invoke("转录中...")
-                                val overlay = overlayInstance ?: OverlayService.instance
-                                if (overlay != null) {
-                                    overlay.appendText(displayText)
-                                }
+                                OverlayService.instance?.appendText(displayText)
                             }
                             // 保存到文件
                             TextSaver.save(displayText)

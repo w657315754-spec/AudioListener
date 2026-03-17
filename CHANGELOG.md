@@ -1,5 +1,11 @@
 # 更新日志
 
+## v1.3.1 (2026-03-17)
+
+### Bug 修复
+
+- 修复悬浮窗不显示转录文字的问题：`startService()` 是异步的，`OverlayService.instance` 在赋值时还未初始化。移除 `TranscriptionService.overlayInstance` 中间变量，改为直接使用 `OverlayService.instance` 单例，确保转录结果到达时悬浮窗已就绪
+
 ## v1.3.0 (2026-03-17)
 
 ### 新功能
