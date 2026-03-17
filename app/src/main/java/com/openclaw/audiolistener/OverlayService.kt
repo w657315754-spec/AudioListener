@@ -36,6 +36,7 @@ class OverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        Log.i(TAG, "onCreate called, setting instance=$instance")
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         val dm = resources.displayMetrics
@@ -186,14 +187,19 @@ class OverlayService : Service() {
     }
 
     fun appendText(text: String) {
-        Log.i(TAG, "appendText called: $text, instance=$instance")
+        Log.i(TAG, "appendText called: $text, instance=$instance, tvOverlayContent initialized=${::tvOverlayContent.isInitialized}")
+        if (!::tvOverlayContent.isInitialized) {
+            Log.e(TAG, "tvOverlayContent not initialized!")
+            return
+        }
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
         handler.post {
+            Log.i(TAG, "Running appendText on UI thread")
             val current = tvOverlayContent.text.toString()
             val updated = if (current.isBlank()) text else "$current\n$text"
             tvOverlayContent.text = updated
             scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
-            Log.i(TAG, "appendText done: $text")
+            Log.i(TAG, "appendText done: updated text length=${updated.length}")
         }
     }
 

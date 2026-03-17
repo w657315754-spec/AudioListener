@@ -223,14 +223,25 @@ class TranscriptionService : Service() {
                                         .getBoolean("overlay_enabled", false)
                                     Log.w(TAG, "OverlayService.instance is null, overlayEnabled=$overlayEnabled")
                                     if (overlayEnabled && android.provider.Settings.canDrawOverlays(this)) {
-                                        startService(android.content.Intent(this, OverlayService::class.java))
-                                        Log.i(TAG, "Started OverlayService, will retry appendText in 500ms")
-                                        // startService 是异步的，延迟后重试
-                                        val pendingText = displayText
-                                        mainHandler.postDelayed({
-                                            OverlayService.instance?.appendText(pendingText)
-                                            Log.i(TAG, "Retry appendText, instance=${OverlayService.instance}")
-                                        }, 500)
+                                        Log.i(TAG, "About to start OverlayService")
+                                        val intent = android.content.Intent(this, OverlayService::class.java)
+                                        val started = startService(intent)
+                                        Log.i(TAG, "startService returned: $started")
+                                        if (started != null) {
+                                            Log.i(TAG, "OverlayService started, will retry appendText in 500ms")
+                                            val pendingText = displayText
+                                            mainHandler.postDelayed({
+                                                Log.i(TAG, "Retry appendText, instance=${OverlayService.instance}")
+                                                if (OverlayService.instance != null) {
+                                                    OverlayService.instance?.appendText(pendingText)
+                                                    Log.i(TAG, "appendText called successfully")
+                                                } else {
+                                                    Log.e(TAG, "OverlayService.instance still null after delay!")
+                                                }
+                                            }, 500)
+                                        } else {
+                                            Log.e(TAG, "startService returned null!")
+                                        }
                                     }
                                 } else {
                                     Log.i(TAG, "Sending to overlay, instance=${OverlayService.instance}, text=$displayText")
