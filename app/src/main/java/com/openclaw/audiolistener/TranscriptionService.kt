@@ -217,9 +217,25 @@ class TranscriptionService : Service() {
                             mainHandler.post {
                                 onTranscriptionResult?.invoke(displayText)
                                 onStatusUpdate?.invoke("转录中...")
-                                // 悬浮窗显示
-                                Log.i(TAG, "Sending to overlay, instance=${OverlayService.instance}, text=$displayText")
-                                OverlayService.instance?.appendText(displayText)
+                                // 悬浮窗显示：如果 instance 为 null 且用户开启了悬浮窗，自动启动
+                                if (OverlayService.instance == null) {
+                                    val overlayEnabled = getSharedPreferences("audio_listener_settings", android.content.Context.MODE_PRIVATE)
+                                        .getBoolean("overlay_enabled", false)
+                                    Log.w(TAG, "OverlayService.instance is null, overlayEnabled=$overlayEnabled")
+                                    if (overlayEnabled && android.provider.Settings.canDrawOverlays(this)) {
+                                        startService(android.content.Intent(this, OverlayService::class.java))
+                                        Log.i(TAG, "Started OverlayService, will retry appendText in 500ms")
+                                        // startService 是异步的，延迟后重试
+                                        val pendingText = displayText
+                                        mainHandler.postDelayed({
+                                            OverlayService.instance?.appendText(pendingText)
+                                            Log.i(TAG, "Retry appendText, instance=${OverlayService.instance}")
+                                        }, 500)
+                                    }
+                                } else {
+                                    Log.i(TAG, "Sending to overlay, instance=${OverlayService.instance}, text=$displayText")
+                                    OverlayService.instance?.appendText(displayText)
+                                }
                             }
                             // 保存到文件
                             TextSaver.save(displayText)
