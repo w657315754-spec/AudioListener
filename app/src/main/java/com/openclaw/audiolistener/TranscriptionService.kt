@@ -32,6 +32,8 @@ class TranscriptionService : Service() {
         private const val CHANNEL_ID = "transcription_channel"
         private const val TAG = "TranscriptionService"
         private const val SAMPLE_RATE = 16000
+
+        @Volatile var overlayInstance: OverlayService? = null
     }
 
     inner class LocalBinder : Binder() {
@@ -217,35 +219,9 @@ class TranscriptionService : Service() {
                             mainHandler.post {
                                 onTranscriptionResult?.invoke(displayText)
                                 onStatusUpdate?.invoke("转录中...")
-                                // 悬浮窗显示：如果 instance 为 null 且用户开启了悬浮窗，自动启动
-                                if (OverlayService.instance == null) {
-                                    val overlayEnabled = getSharedPreferences("audio_listener_settings", android.content.Context.MODE_PRIVATE)
-                                        .getBoolean("overlay_enabled", false)
-                                    Log.w(TAG, "OverlayService.instance is null, overlayEnabled=$overlayEnabled")
-                                    if (overlayEnabled && android.provider.Settings.canDrawOverlays(this)) {
-                                        Log.i(TAG, "About to start OverlayService")
-                                        val intent = android.content.Intent(this, OverlayService::class.java)
-                                        val started = startService(intent)
-                                        Log.i(TAG, "startService returned: $started")
-                                        if (started != null) {
-                                            Log.i(TAG, "OverlayService started, will retry appendText in 500ms")
-                                            val pendingText = displayText
-                                            mainHandler.postDelayed({
-                                                Log.i(TAG, "Retry appendText, instance=${OverlayService.instance}")
-                                                if (OverlayService.instance != null) {
-                                                    OverlayService.instance?.appendText(pendingText)
-                                                    Log.i(TAG, "appendText called successfully")
-                                                } else {
-                                                    Log.e(TAG, "OverlayService.instance still null after delay!")
-                                                }
-                                            }, 500)
-                                        } else {
-                                            Log.e(TAG, "startService returned null!")
-                                        }
-                                    }
-                                } else {
-                                    Log.i(TAG, "Sending to overlay, instance=${OverlayService.instance}, text=$displayText")
-                                    OverlayService.instance?.appendText(displayText)
+                                val overlay = overlayInstance ?: OverlayService.instance
+                                if (overlay != null) {
+                                    overlay.appendText(displayText)
                                 }
                             }
                             // 保存到文件

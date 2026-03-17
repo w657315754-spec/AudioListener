@@ -68,6 +68,11 @@ class MainActivity : AppCompatActivity() {
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             transcriptionService = (binder as TranscriptionService.LocalBinder).getService()
+            
+            if (switchOverlay.isChecked) {
+                TranscriptionService.overlayInstance = OverlayService.instance
+            }
+            
             transcriptionService?.onTranscriptionResult = { text ->
                 runOnUiThread { appendTranscription(text) }
             }
@@ -199,6 +204,7 @@ class MainActivity : AppCompatActivity() {
             if (checked) {
                 if (Settings.canDrawOverlays(this)) {
                     startService(Intent(this, OverlayService::class.java))
+                    TranscriptionService.overlayInstance = OverlayService.instance
                 } else {
                     switchOverlay.isChecked = false
                     startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -206,6 +212,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } else {
                 stopService(Intent(this, OverlayService::class.java))
+                TranscriptionService.overlayInstance = null
             }
         }
 
