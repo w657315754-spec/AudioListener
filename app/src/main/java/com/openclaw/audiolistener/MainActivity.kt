@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAlpha: TextView
     private lateinit var tvFilePath: TextView
     private lateinit var btnNotion: Button
+    private lateinit var btnShare: Button
     private lateinit var switchStreaming: Switch
 
     // language codes matching spinner order
@@ -153,6 +154,7 @@ class MainActivity : AppCompatActivity() {
         tvAlpha = findViewById(R.id.tvAlpha)
         tvFilePath = findViewById(R.id.tvFilePath)
         btnNotion = findViewById(R.id.btnNotion)
+        btnShare = findViewById(R.id.btnShare)
         switchStreaming = findViewById(R.id.switchStreaming)
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -241,6 +243,21 @@ class MainActivity : AppCompatActivity() {
             NotionUploader.uploadTodayFile { success, msg ->
                 runOnUiThread { setStatus(msg) }
             }
+        }
+
+        // AI 修正分享
+        btnShare.setOnClickListener {
+            val transcription = tvTranscription.text.toString()
+            if (transcription.isBlank() || transcription == getString(R.string.transcription_hint)) {
+                setStatus("没有可分享的转录内容")
+                return@setOnClickListener
+            }
+            val prompt = "请帮我修正以下语音转录文稿，修正错别字、补充标点符号、理顺语句，保持原意不变：\n\n$transcription"
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, prompt)
+            }
+            startActivity(Intent.createChooser(shareIntent, "分享到 AI 修正"))
         }
 
         requestStoragePermissionIfNeeded()
