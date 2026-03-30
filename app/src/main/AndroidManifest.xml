@@ -29,6 +29,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".AiSettingsActivity"
+            android:exported="false" />
+
         <service
             android:name=".TranscriptionService"
             android:enabled="true"

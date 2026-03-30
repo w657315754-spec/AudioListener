@@ -44,4 +44,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.6.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation(files("libs/sherpa-onnx.aar"))
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
+    implementation("org.json:json:20231013")
 }

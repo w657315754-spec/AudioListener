@@ -1,6 +1,8 @@
 package com.openclaw.audiolistener
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -14,16 +16,20 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.IBinder
 import android.provider.Settings
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import okhttp3.Call
 import java.io.File
 
 class MainActivity : AppCompatActivity() {
@@ -45,6 +51,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnNotion: Button
     private lateinit var btnShare: Button
     private lateinit var switchStreaming: Switch
+    private lateinit var btnAiSummary: Button
+    private lateinit var btnAiSettings: Button
+    private lateinit var layoutSummary: LinearLayout
+    private lateinit var tvSummary: TextView
+    private lateinit var btnCopySummary: Button
+    private lateinit var btnShareSummary: Button
+    private lateinit var btnCloseSummary: Button
+
+    private var currentSummaryCall: Call? = null
 
     // language codes matching spinner order
     private val languageCodes = arrayOf("auto", "zh", "en")
@@ -156,6 +171,13 @@ class MainActivity : AppCompatActivity() {
         btnNotion = findViewById(R.id.btnNotion)
         btnShare = findViewById(R.id.btnShare)
         switchStreaming = findViewById(R.id.switchStreaming)
+        btnAiSummary = findViewById(R.id.btnAiSummary)
+        btnAiSettings = findViewById(R.id.btnAiSettings)
+        layoutSummary = findViewById(R.id.layoutSummary)
+        tvSummary = findViewById(R.id.tvSummary)
+        btnCopySummary = findViewById(R.id.btnCopySummary)
+        btnShareSummary = findViewById(R.id.btnShareSummary)
+        btnCloseSummary = findViewById(R.id.btnCloseSummary)
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -258,6 +280,38 @@ class MainActivity : AppCompatActivity() {
                 putExtra(Intent.EXTRA_TEXT, prompt)
             }
             startActivity(Intent.createChooser(shareIntent, "分享到 AI 修正"))
+        }
+
+        // AI 总结按钮
+        btnAiSummary.setOnClickListener { startAiSummary() }
+
+        // AI 设置按钮
+        btnAiSettings.setOnClickListener {
+            startActivity(Intent(this, AiSettingsActivity::class.java))
+        }
+
+        // 总结区操作
+        btnCopySummary.setOnClickListener {
+            val text = tvSummary.text.toString()
+            if (text.isNotBlank()) {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("AI Summary", text))
+                Toast.makeText(this, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
+            }
+        }
+        btnShareSummary.setOnClickListener {
+            val text = tvSummary.text.toString()
+            if (text.isNotBlank()) {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                }
+                startActivity(Intent.createChooser(intent, "分享 AI 总结"))
+            }
+        }
+        btnCloseSummary.setOnClickListener {
+            currentSummaryCall?.cancel()
+            layoutSummary.visibility = View.GONE
         }
 
         requestStoragePermissionIfNeeded()
@@ -420,6 +474,55 @@ class MainActivity : AppCompatActivity() {
 
     private fun setStatus(msg: String) {
         tvStatus.text = msg
+    }
+
+    private fun startAiSummary() {
+        val transcription = tvTranscription.text.toString()
+        if (transcription.isBlank() || transcription == getString(R.string.transcription_hint)) {
+            setStatus("没有可总结的转录内容")
+            return
+        }
+        if (!AiSummaryService.isNetworkAvailable(this)) {
+            setStatus("需要网络连接才能使用 AI 总结")
+            return
+        }
+        if (!AiConfig.isConfigured(this)) {
+            setStatus("请先配置 AI API Key")
+            startActivity(Intent(this, AiSettingsActivity::class.java))
+            return
+        }
+
+        // 取消上一次请求
+        currentSummaryCall?.cancel()
+
+        layoutSummary.visibility = View.VISIBLE
+        tvSummary.text = "正在生成总结..."
+        btnAiSummary.isEnabled = false
+        btnAiSummary.text = "生成中..."
+
+        currentSummaryCall = AiSummaryService.streamSummary(
+            context = this,
+            transcription = transcription,
+            onChunk = { partial ->
+                runOnUiThread { tvSummary.text = partial }
+            },
+            onDone = { fullText ->
+                runOnUiThread {
+                    tvSummary.text = fullText
+                    btnAiSummary.isEnabled = true
+                    btnAiSummary.text = "AI总结"
+                    setStatus("AI 总结完成")
+                }
+            },
+            onError = { error ->
+                runOnUiThread {
+                    tvSummary.text = "❌ $error"
+                    btnAiSummary.isEnabled = true
+                    btnAiSummary.text = "AI总结"
+                    setStatus("AI 总结失败")
+                }
+            }
+        )
     }
 
     override fun onDestroy() {

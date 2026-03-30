@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="AI 总结配置"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="AI 服务商"
+        android:textSize="14sp" />
+
+    <Spinner
+        android:id="@+id/spinnerProvider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="API Key"
+        android:textSize="14sp" />
+
+    <EditText
+        android:id="@+id/etApiKey"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="输入 API Key"
+        android:inputType="textPassword"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:id="@+id/layoutCustom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="自定义 API 地址（OpenAI 兼容）"
+            android:textSize="14sp" />
+
+        <EditText
+            android:id="@+id/etCustomUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="https://api.example.com/v1"
+            android:inputType="textUri"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="模型名称"
+            android:textSize="14sp" />
+
+        <EditText
+            android:id="@+id/etCustomModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="gpt-3.5-turbo"
+            android:inputType="text"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvProviderHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textSize="12sp"
+        android:textColor="#888888" />
+
+    <Button
+        android:id="@+id/btnSave"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="保存" />
+
+    <TextView
+        android:id="@+id/tvTestResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textSize="12sp"
+        android:textColor="@color/teal_200" />
+
+</LinearLayout>

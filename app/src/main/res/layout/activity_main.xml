@@ -172,12 +172,89 @@
         android:textSize="12sp"
         android:textColor="@color/teal_200" />
 
+    <!-- AI 总结结果区 -->
+    <LinearLayout
+        android:id="@+id/layoutSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp"
+        android:background="#1A6200EE"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📝 AI 总结"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnCopySummary"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:text="复制"
+                android:textSize="10sp"
+                android:minWidth="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp" />
+
+            <Button
+                android:id="@+id/btnShareSummary"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:text="分享"
+                android:textSize="10sp"
+                android:minWidth="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:layout_marginStart="4dp" />
+
+            <Button
+                android:id="@+id/btnCloseSummary"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:text="✕"
+                android:textSize="10sp"
+                android:minWidth="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:layout_marginStart="4dp" />
+
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxHeight="200dp"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/tvSummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:lineSpacingExtra="3dp"
+                android:textIsSelectable="true" />
+
+        </ScrollView>
+
+    </LinearLayout>
+
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:background="#1A000000"
         android:padding="8dp">
 
@@ -208,6 +285,27 @@
             android:textColor="#888888" />
 
         <Button
+            android:id="@+id/btnAiSummary"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="AI总结"
+            android:textSize="11sp"
+            android:minWidth="0dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp" />
+
+        <Button
+            android:id="@+id/btnAiSettings"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="⚙"
+            android:textSize="14sp"
+            android:minWidth="0dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:layout_marginStart="4dp" />
+
+        <Button
             android:id="@+id/btnNotion"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
@@ -215,7 +313,8 @@
             android:textSize="11sp"
             android:minWidth="0dp"
             android:paddingStart="12dp"
-            android:paddingEnd="12dp" />
+            android:paddingEnd="12dp"
+            android:layout_marginStart="4dp" />
 
         <Button
             android:id="@+id/btnShare"
