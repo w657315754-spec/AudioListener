@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/tvSetupTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="语音识别模型下载"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:id="@+id/tvSetupStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <ProgressBar
+        android:id="@+id/progressSetup"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tvSetupProgress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginBottom="32dp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/btnStartDownload"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="开始下载"
+        android:textSize="18sp"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/btnSkipSetup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="跳过（稍后手动下载）"
+        android:textSize="14sp"
+        style="?android:attr/buttonBarButtonStyle" />
+
+</LinearLayout>

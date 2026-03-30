@@ -315,6 +315,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         requestStoragePermissionIfNeeded()
+
+        // 检查模型是否已下载，未下载则跳转到下载页面
+        val modelManager = ModelDownloadManager(this)
+        if (!modelManager.isSenseVoiceReady()) {
+            startActivity(Intent(this, ModelSetupActivity::class.java))
+        }
     }
 
     override fun onResume() {
